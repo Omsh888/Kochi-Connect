@@ -1,11 +1,36 @@
 from pydantic import BaseModel,EmailStr,Field
 from typing import Optional,List  
 from datetime import datetime
+from bson import ObjectId
 
+class PyObjectId(ObjectId):
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+    
+    @classmethod
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid ObjectId")
+        return ObjectId(v)
 
+    @classmethod
+    def __modify_schema__(cls, field_schema):
+        field_schema.update(type="string")
+
+class MongoModel(BaseModel):
+    id: Optional[PyObjectId] = Field(alias="_id")
+
+    class Config:
+        allow_population_by_field_name = True  # let us use "id" or "_id"
+        arbitrary_types_allowed = True         # allow ObjectId in models
+        json_encoders = {ObjectId: str}        # convert ObjectId → str in responses
 # Employess Schemasss
 
-class EmployeeBase(BaseModel):
+
+class EmployeeBase(MongoModel):
+    __collection__ = "employees"
+
     name:str
     email:EmailStr
     department: str
@@ -23,7 +48,7 @@ class EmployeeResponse(EmployeeBase):
 
 #Document text
 
-class DocumentText(BaseModel):
+class DocumentText(MongoModel):
     text_id: str
     extracted_text: str
     created_at: datetime   
@@ -36,7 +61,8 @@ class DocumentText_Response(DocumentText):
 
 #Document schemas
 
-class DocumenBase(BaseModel):
+class DocumenBase(MongoModel):
+    __collection__ = "document"
     title: str
     file_path: str
     source: str
@@ -57,7 +83,8 @@ class DocumentResponse(DocumenBase):
 
 #Summary Schemas   
 
-class SummaryBase(BaseModel):
+class SummaryBase(MongoModel):
+    __collection__ = "summary"
     document_id: str
     role: str
     summary_text: str
@@ -74,7 +101,8 @@ class SummaryResponse(SummaryBase):
 
 #compliance flag schemas
 
-class ComplianceFlagBase(BaseModel):
+class ComplianceFlagBase(MongoModel):
+    __collection__ = "compliance_flag"
     document_id: str
     flag_type: str
     deadline: datetime
@@ -90,7 +118,9 @@ class ComplianceFlagResponse(ComplianceFlagBase):
 
 #Notification Schemas
 
-class NotificationBase(BaseModel):
+class NotificationBase(MongoModel):
+    __collection__ = "notifications"
+
     employee_id:str
     document_id: str
     summary_id: Optional[str]
