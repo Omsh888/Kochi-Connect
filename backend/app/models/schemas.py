@@ -1,40 +1,38 @@
-from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List, Any
 from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from bson import ObjectId
+from pydantic.json_schema import JsonSchemaValue
 from pydantic_core import core_schema
 
-
-# --- Custom ObjectId Type ---
 class PyObjectId(ObjectId):
     @classmethod
-    def __get_pydantic_core_schema__(cls, _source_type, _handler):
-        return core_schema.no_info_after_validator_function(
+    def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any) -> core_schema.CoreSchema:
+        return core_schema.general_after_validator_function(
             cls.validate,
-            core_schema.str_schema()
+            core_schema.str_schema(),
+            serialization=core_schema.to_string_ser_schema(),
         )
 
     @classmethod
-    def validate(cls, v: Any):
+    def validate(cls, v, _info):
         if not ObjectId.is_valid(v):
             raise ValueError("Invalid ObjectId")
         return ObjectId(v)
 
     @classmethod
-    def __get_pydantic_json_schema__(cls, _core_schema, _handler):
-        return {"type": "string", "example": "64f8a61c7f1b2c3d4e5f6789"}
+    def __get_pydantic_json_schema__(cls, _core_schema: core_schema.CoreSchema, _handler: Any) -> JsonSchemaValue:
+        return {"type": "string"}
 
 
-# --- Base Mongo Model ---
 class MongoModel(BaseModel):
-    id: Optional[PyObjectId] = Field(alias="_id")
+    id: Optional[PyObjectId] = Field(alias="_id", default_factory=PyObjectId)
 
-    model_config = {
-        "populate_by_name": True,   # replaces allow_population_by_field_name
-        "arbitrary_types_allowed": True,
-        "json_encoders": {ObjectId: str}
-    }
-
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str},
+        populate_by_name=True,
+    )
 
 # --- Employee Schemas ---
 class EmployeeBase(MongoModel):
@@ -63,25 +61,34 @@ class Attachment(BaseModel):
     drive_link: str
 
 
-class DocumentBase(MongoModel):
-    __collection__ = "document"
+class DocumentBase(BaseModel):
+    id: Optional[str] = Field(alias="_id", default=None)
     text_id: str
-    sender: str     #email/phone no.
+    sender: str
     subject: str
     extracted_text: str
     created_at: datetime
-    source:str
-    status:str="open"
-    priority:Optional[str]
-    assigned_to:Optional[str]
-    attachments: List[Attachment] = []
+    source: str
+    status: str = "open"
+    priority: Optional[str] = None
+    assigned_to: Optional[str] = None
+    attachments: Optional[List[Attachment]] = []
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str},
+        populate_by_name=True,
+    )
 
 class Document_Base_Create(DocumentBase):
     pass
 
 class Document_Base_Response(DocumentBase):
-    text_id: str
-    created_at: datetime
+    pass
+
+# class Document_Base_Response(DocumentBase):
+#     text_id: str
+#     created_at: datetime
 
 
 
