@@ -55,15 +55,46 @@ def parse_message(service, msg_id: str) -> dict:
             filename = part.get("filename")
             body = part.get("body", {})
             if filename and "attachmentId" in body:
-                att_id = body["attachmentId"]
-                att = service.users().messages().attachments().get(
-                    userId="me", messageId=msg_id, id=att_id
-                ).execute()
-                data = att.get("data")
-                file_bytes = base64.urlsafe_b64decode(data.encode("UTF-8"))
-                link = upload_to_drive(filename, file_bytes)
-                # link = f"drive_upload_skipped_{filename}"
-                attachments_info.append({"filename": filename, "drive_link": link})
+                try:
+                    att_id = body["attachmentId"]
+                    att = service.users().messages().attachments().get(
+                        userId="me", messageId=msg_id, id=att_id
+                    ).execute()
+                    data = att.get("data")
+                    file_bytes = base64.urlsafe_b64decode(data.encode("UTF-8"))
+                    
+                    # Upload to Drive and get URL
+                    drive_url = upload_to_drive(filename, file_bytes)
+                    
+                    # ✅ FIXED: Better file extension extraction
+                    if '.' in filename:
+                        file_extension = filename.split('.')[-1].lower().strip()
+                        # Remove any query parameters or special characters
+                        file_extension = file_extension.split('?')[0].split('#')[0]
+                    else:
+                        file_extension = 'unknown'
+                    
+                    # Create attachment object with new schema
+                    attachment = {
+                        "file_url": drive_url,
+                        "file_type": file_extension
+                    }
+                    attachments_info.append(attachment)
+                    
+                    print(f"📎 Attachment processed: {filename} -> {file_extension}")
+                    
+                except Exception as e:
+                    print(f"⚠️ Attachment error for {filename}: {e}")
+                    # Try to extract extension even if upload fails
+                    file_extension = 'unknown'
+                    if filename and '.' in filename:
+                        file_extension = filename.split('.')[-1].lower().strip()
+                    
+                    fallback_attachment = {
+                        "file_url": f"error_uploading_{filename}",
+                        "file_type": file_extension
+                    }
+                    attachments_info.append(fallback_attachment)
 
     return {
         "text_id": msg_id,

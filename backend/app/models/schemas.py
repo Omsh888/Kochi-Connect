@@ -57,8 +57,8 @@ class EmployeeResponse(EmployeeBase):
 
 # --- Document Text ---
 class Attachment(BaseModel):
-    filename: str
-    drive_link: str
+    file_url: str
+    file_type: str
 
 
 class DocumentBase(BaseModel):
