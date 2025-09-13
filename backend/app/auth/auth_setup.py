@@ -1,5 +1,4 @@
-# to run this file --> ( python auth.py)
-# it generates a token.json file after successful authentication
+# to run this file --> (python app/auth/auth_setup.py) AND  file after successful authentication
 # which is used by main.py to access Google APIs
 
 from google_auth_oauthlib.flow import InstalledAppFlow

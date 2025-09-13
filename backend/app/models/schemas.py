@@ -41,7 +41,7 @@ class EmployeeBase(MongoModel):
     name: str
     email: EmailStr
     department: str
-    role: str
+    role: int # 1-Admin, 2- Staff
     password: str
     phone: Optional[str]
 
