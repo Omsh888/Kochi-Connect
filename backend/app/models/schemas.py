@@ -1,106 +1,115 @@
-from pydantic import BaseModel,EmailStr,Field
-from typing import Optional,List  
+from typing import Optional, List, Any
 from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
 from bson import ObjectId
+from pydantic.json_schema import JsonSchemaValue
+from pydantic_core import core_schema
 
 class PyObjectId(ObjectId):
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-    
+    def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any) -> core_schema.CoreSchema:
+        return core_schema.general_after_validator_function(
+            cls.validate,
+            core_schema.str_schema(),
+            serialization=core_schema.to_string_ser_schema(),
+        )
+
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v, _info):
         if not ObjectId.is_valid(v):
             raise ValueError("Invalid ObjectId")
         return ObjectId(v)
 
     @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(type="string")
+    def __get_pydantic_json_schema__(cls, _core_schema: core_schema.CoreSchema, _handler: Any) -> JsonSchemaValue:
+        return {"type": "string"}
+
 
 class MongoModel(BaseModel):
-    id: Optional[PyObjectId] = Field(alias="_id")
+    id: Optional[PyObjectId] = Field(alias="_id", default_factory=PyObjectId)
 
-    class Config:
-        allow_population_by_field_name = True  # let us use "id" or "_id"
-        arbitrary_types_allowed = True         # allow ObjectId in models
-        json_encoders = {ObjectId: str}        # convert ObjectId → str in responses
-# Employess Schemasss
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str},
+        populate_by_name=True,
+    )
 
-
+# --- Employee Schemas ---
 class EmployeeBase(MongoModel):
     __collection__ = "employees"
 
-    name:str
-    email:EmailStr
+    name: str
+    email: EmailStr
     department: str
     role: str
-    password:str
+    password: str
+    phone: Optional[str]
 
 
 class EmployeeCreate(EmployeeBase):
     pass
 
+
 class EmployeeResponse(EmployeeBase):
-    id:str
+    id: str
     created_at: datetime
 
 
-#Document text
+# --- Document Text ---
+class Attachment(BaseModel):
+    filename: str
+    drive_link: str
 
-class DocumentText(MongoModel):
+
+class DocumentBase(BaseModel):
+    id: Optional[str] = Field(alias="_id", default=None)
     text_id: str
+    sender: str
+    subject: str
     extracted_text: str
-    created_at: datetime   
-
-class DocumentText_Response(DocumentText):
-    text_id:str
-    created_at:datetime
-
-
-
-#Document schemas
-
-class DocumenBase(MongoModel):
-    __collection__ = "document"
-    title: str
-    file_path: str
+    created_at: datetime
     source: str
-    language: str
+    status: str = "open"
+    priority: Optional[str] = None
+    assigned_to: Optional[str] = None
+    attachments: Optional[List[Attachment]] = []
 
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str},
+        populate_by_name=True,
+    )
 
-class DocumentCreate(DocumenBase):
+class Document_Base_Create(DocumentBase):
     pass
 
+class Document_Base_Response(DocumentBase):
+    pass
 
-class DocumentResponse(DocumenBase):
-    id: str
-    uploaded_at: datetime
-    document_text: Optional[DocumentText]
+# class Document_Base_Response(DocumentBase):
+#     text_id: str
+#     created_at: datetime
 
 
 
-
-#Summary Schemas   
-
+# --- Summary Schemas ---
 class SummaryBase(MongoModel):
     __collection__ = "summary"
     document_id: str
-    role: str
+    department: str
     summary_text: str
+
 
 class SummaryCreate(SummaryBase):
     pass
 
 
 class SummaryResponse(SummaryBase):
-    id:str
-    created_at:datetime
+    id: str
+    created_at: datetime
 
 
-
-#compliance flag schemas
-
+# --- Compliance Flag Schemas ---
 class ComplianceFlagBase(MongoModel):
     __collection__ = "compliance_flag"
     document_id: str
@@ -108,29 +117,31 @@ class ComplianceFlagBase(MongoModel):
     deadline: datetime
     status: str
 
+
 class ComplianceFlagCreate(ComplianceFlagBase):
     pass
 
+
 class ComplianceFlagResponse(ComplianceFlagBase):
-    id:str
+    id: str
     created_at: datetime
 
 
-#Notification Schemas
-
+# --- Notification Schemas ---
 class NotificationBase(MongoModel):
     __collection__ = "notifications"
 
-    employee_id:str
+    employee_id: str
     document_id: str
     summary_id: Optional[str]
     delivery_channel: str
     status: str
+
 
 class NotificationCreate(NotificationBase):
     pass
 
 
 class NotificationResponse(NotificationBase):
-    id:str
-    delivered_at:datetime
+    id: str
+    delivered_at: datetime
