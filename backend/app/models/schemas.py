@@ -37,7 +37,6 @@ class MongoModel(BaseModel):
 # --- Employee Schemas ---
 class EmployeeBase(MongoModel):
     __collection__ = "employees"
-
     name: str
     email: EmailStr
     department: str
@@ -45,15 +44,27 @@ class EmployeeBase(MongoModel):
     password: str
     phone: Optional[str]
 
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
 
 class EmployeeCreate(EmployeeBase):
     pass
 
 
-class EmployeeResponse(EmployeeBase):
+# Create a separate response model without password
+class EmployeeResponse(BaseModel):
     id: str
+    name: str
+    email: EmailStr
+    department: str
+    role: int  # 1-Admin, 2- Staff
+    phone: Optional[str] = None
     created_at: datetime
 
+    class Config:
+        arbitrary_types_allowed = True
 
 # --- Document Text ---
 class Attachment(BaseModel):
@@ -65,7 +76,7 @@ class DocumentBase(BaseModel):
     id: Optional[str] = Field(alias="_id", default=None)
     text_id: str
     sender: str
-    subject: str
+    subject: Optional[str] = None
     extracted_text: str
     created_at: datetime
     source: str

@@ -10,6 +10,7 @@ from googleapiclient.discovery import build
 from app.database import db
 from app.models.schemas import Document_Base_Create, Attachment
 from app.services.drive_service import upload_to_drive
+from .document_router import auto_assign_document, document_router
 
 router = APIRouter()
 documents_collection = db["document"]
@@ -131,11 +132,16 @@ async def process_single_email(msg_id: str):
         doc["_id"] = str(result.inserted_id)
         
         print(f"✅ New email stored: {data['subject']}")
+
+        # ✅ NEW: Auto-assign document to department staff
+        await auto_assign_document(doc["_id"])
+
         return doc
         
     except Exception as e:
         print(f"❌ Error processing message {data['text_id']}: {e}")
         return None
+
 
 # Store the last history ID to track new emails
 async def get_last_history_id():
